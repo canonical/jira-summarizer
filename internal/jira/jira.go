@@ -157,7 +157,35 @@ func (jc *Client) createRequest(method, path, body string) (*http.Request, error
 	return req, nil
 }
 
-// GetAssignedEpics retrieves all opened epics assigned to the current user.
+func jiraGet[T any](jc *Client, path string, result *T) (err error) {
+	req, err := jc.createRequest("GET", path, "")
+	if err != nil {
+		return err
+	}
+
+	resp, err := jc.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("got network status: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(body, result); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetMyAssignedEpics retrieves all opened epics assigned to the current user.
 func (jc *Client) GetMyAssignedEpics() (issues []Issue, err error) {
 	defer decorate.OnError(&err, "failed to retrieved current user's epics")
 
@@ -166,30 +194,10 @@ func (jc *Client) GetMyAssignedEpics() (issues []Issue, err error) {
 	encodedJQL := url.QueryEscape(jql)
 	path := fmt.Sprintf("/rest/api/2/search?jql=%s&expand=subtasks", encodedJQL)
 
-	req, err := jc.createRequest("GET", path, "")
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := jc.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("got network status: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	var result struct {
 		Issues []Issue `json:"issues"`
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
+	if err := jiraGet(jc, path, &result); err != nil {
 		return nil, err
 	}
 
