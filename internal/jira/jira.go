@@ -8,30 +8,33 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ubuntu/decorate"
 )
 
 // Client handles API communication
 type Client struct {
-	username string
-	token    string
-	baseURL  *url.URL
-	client   *http.Client
+	username              string
+	token                 string
+	baseURL               *url.URL
+	client                *http.Client
+	changesMoreRecentThan time.Time
 }
 
 // NewClient creates a new Jira client
-func NewClient(baseURL, user, token string) (*Client, error) {
+func NewClient(baseURL, user, token string, changesMoreRecentThan time.Time) (*Client, error) {
 	base, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Client{
-		username: user,
-		token:    token,
-		baseURL:  base,
-		client:   &http.Client{},
+		username:              user,
+		token:                 token,
+		baseURL:               base,
+		client:                &http.Client{},
+		changesMoreRecentThan: changesMoreRecentThan,
 	}, nil
 }
 
