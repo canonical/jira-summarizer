@@ -205,36 +205,18 @@ func (jc *Client) GetMyAssignedEpics() (issues []Issue, err error) {
 }
 
 // GetSubtasks retrieves all subtasks for an epic
-func (jc *Client) GetSubtasks(epicKey string) ([]Issue, error) {
+func (jc *Client) GetSubtasks(epicKey string) (issues []Issue, err error) {
+	defer decorate.OnError(&err, "failed to retrieved subtasks of %s", epicKey)
+
 	// JQL to find all subtasks of the epic
 	jql := fmt.Sprintf("parent = %s OR \"Epic Link\" = %s", epicKey, epicKey)
 	encodedJQL := url.QueryEscape(jql)
 	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
 
-	req, err := jc.createRequest("GET", path, "")
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := jc.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to retrieve subtasks: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	var result struct {
 		Issues []Issue `json:"issues"`
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
+	if err := jiraGet(jc, path, &result); err != nil {
 		return nil, err
 	}
 
@@ -260,17 +242,14 @@ func (jc *Client) GetIssueChangelog(issueKey string) (IssueHistory, error) {
 		return IssueHistory{}, fmt.Errorf("failed to retrieve changelog: %s", resp.Status)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	path := fmt.Sprintf("/rest/api/2/issue/%s/changelog", issueKey)
+
+	var result IssueHistory
+	if err := jiraGet(jc, path, &result); err != nil {
 		return IssueHistory{}, err
 	}
 
-	var history IssueHistory
-	if err := json.Unmarshal(body, &history); err != nil {
-		return IssueHistory{}, err
-	}
-
-	return history, nil
+	return result, nil
 }
 
 // GetIssueComments retrieves comments for an issue
@@ -288,21 +267,14 @@ func (jc *Client) GetIssueComments(issueKey string) (CommentList, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return CommentList{}, fmt.Errorf("failed to retrieve comments: %s", resp.Status)
-	}
+	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", issueKey)
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	var result CommentList
+	if err := jiraGet(jc, path, &result); err != nil {
 		return CommentList{}, err
 	}
 
-	var comments CommentList
-	if err := json.Unmarshal(body, &comments); err != nil {
-		return CommentList{}, err
-	}
-
-	return comments, nil
+	return result, nil
 }
 
 // GetIssueDetails retrieves full details for an issue
@@ -314,27 +286,14 @@ func (jc *Client) GetIssueDetails(issueKey string) (Issue, error) {
 		return Issue{}, err
 	}
 
-	resp, err := jc.client.Do(req)
-	if err != nil {
-		return Issue{}, err
-	}
-	defer resp.Body.Close()
+	path := fmt.Sprintf("/rest/api/2/issue/%s", issueKey)
 
-	if resp.StatusCode != http.StatusOK {
-		return Issue{}, fmt.Errorf("failed to retrieve issue details: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	var result Issue
+	if err := jiraGet(jc, path, &result); err != nil {
 		return Issue{}, err
 	}
 
-	var issue Issue
-	if err := json.Unmarshal(body, &issue); err != nil {
-		return Issue{}, err
-	}
-
-	return issue, nil
+	return result, nil
 }
 
 // AddComment adds a comment to an issue
