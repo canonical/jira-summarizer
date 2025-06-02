@@ -210,23 +210,8 @@ func (jc *Client) GetSubtasks(epicKey string) (issues []Issue, err error) {
 }
 
 // GetIssueChangelog retrieves the changelog for an issue
-func (jc *Client) GetIssueChangelog(issueKey string) (IssueHistory, error) {
-	path := fmt.Sprintf("/rest/api/2/issue/%s/changelog", issueKey)
-
-	req, err := jc.createRequest("GET", path, "")
-	if err != nil {
-		return IssueHistory{}, err
-	}
-
-	resp, err := jc.client.Do(req)
-	if err != nil {
-		return IssueHistory{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return IssueHistory{}, fmt.Errorf("failed to retrieve changelog: %s", resp.Status)
-	}
+func (jc *Client) GetIssueChangelog(issueKey string) (issueHistory IssueHistory, err error) {
+	defer decorate.OnError(&err, "failed to get issue changelog of %s", issueKey)
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s/changelog", issueKey)
 
@@ -239,19 +224,8 @@ func (jc *Client) GetIssueChangelog(issueKey string) (IssueHistory, error) {
 }
 
 // GetIssueComments retrieves comments for an issue
-func (jc *Client) GetIssueComments(issueKey string) (CommentList, error) {
-	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", issueKey)
-
-	req, err := jc.createRequest("GET", path, "")
-	if err != nil {
-		return CommentList{}, err
-	}
-
-	resp, err := jc.client.Do(req)
-	if err != nil {
-		return CommentList{}, err
-	}
-	defer resp.Body.Close()
+func (jc *Client) GetIssueComments(issueKey string) (comments CommentList, err error) {
+	defer decorate.OnError(&err, "failed to get issue comments for %s", issueKey)
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", issueKey)
 
@@ -264,13 +238,8 @@ func (jc *Client) GetIssueComments(issueKey string) (CommentList, error) {
 }
 
 // GetIssueDetails retrieves full details for an issue
-func (jc *Client) GetIssueDetails(issueKey string) (Issue, error) {
-	path := fmt.Sprintf("/rest/api/2/issue/%s", issueKey)
-
-	req, err := jc.createRequest("GET", path, "")
-	if err != nil {
-		return Issue{}, err
-	}
+func (jc *Client) GetIssueDetails(issueKey string) (issue Issue, err error) {
+	defer decorate.OnError(&err, "failed to get detailed on issue %s", issueKey)
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s", issueKey)
 
@@ -283,7 +252,9 @@ func (jc *Client) GetIssueDetails(issueKey string) (Issue, error) {
 }
 
 // AddComment adds a comment to an issue
-func (jc *Client) AddComment(issueKey, commentBody string) error {
+func (jc *Client) AddComment(issueKey, commentBody string) (err error) {
+	defer decorate.OnError(&err, "failed to psot comment on issue %s", issueKey)
+
 	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", issueKey)
 
 	commentJSON := fmt.Sprintf(`{"body": %s}`, formatJSONString(commentBody))
@@ -300,8 +271,7 @@ func (jc *Client) AddComment(issueKey, commentBody string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to add comment: %s - %s", resp.Status, string(bodyBytes))
+		return fmt.Errorf("got network status: %s", resp.Status)
 	}
 
 	return nil
