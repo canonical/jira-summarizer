@@ -38,27 +38,6 @@ func NewClient(baseURL, user, token string, changesMoreRecentThan time.Time) (*C
 	}, nil
 }
 
-// Issue represents a Jira issue (epic or subtask)
-type Issue struct {
-	ID     string
-	Key    string
-	Fields struct {
-		Summary     string
-		Description string
-		Status      struct {
-			Name string
-		}
-		Updated  string
-		Subtasks []struct {
-			ID     string
-			Key    string
-			Fields struct {
-				Summary string
-			}
-		}
-	}
-}
-
 // ChangelogItem represents a change to an issue
 type ChangelogItem struct {
 	Field      string `json:"field"`
@@ -174,17 +153,19 @@ func jiraGet[T any](jc *Client, path string, result *T) (err error) {
 	return nil
 }
 
-// GetMyAssignedEpics retrieves all opened epics assigned to the current user.
-func (jc *Client) GetMyAssignedEpics() (issues []Issue, err error) {
+// GetMyAssignedEpics retrieves all opened epics assigned to the current user and its children subtasks.
+// Recent changes are attached to it.
+// TODO: should retrieve DONE in the last recent changes.
+func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 	defer decorate.OnError(&err, "failed to retrieved current user's epics")
 
 	// Use JQL to find all epics assigned to the user that are NOT Done.
 	jql := "assignee = currentUser() AND issuetype = Epic AND status != Done"
 	encodedJQL := url.QueryEscape(jql)
-	path := fmt.Sprintf("/rest/api/2/search?jql=%s&expand=subtasks", encodedJQL)
+	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
 
 	var result struct {
-		Issues []Issue `json:"issues"`
+		Issues []Issue
 	}
 	if err := jiraGet(jc, path, &result); err != nil {
 		return nil, err
