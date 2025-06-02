@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -38,27 +39,6 @@ func NewClient(baseURL, user, token string, changesMoreRecentThan time.Time) (*C
 	}, nil
 }
 
-// ChangelogItem represents a change to an issue
-type ChangelogItem struct {
-	Field      string `json:"field"`
-	FromString string `json:"fromString"`
-	ToString   string `json:"toString"`
-}
-
-// ChangelogEntry represents an entry in the changelog
-type ChangelogEntry struct {
-	Author struct {
-		DisplayName string `json:"displayName"`
-	} `json:"author"`
-	Created string          `json:"created"`
-	Items   []ChangelogItem `json:"items"`
-}
-
-// IssueHistory contains the changelog for an issue
-type IssueHistory struct {
-	Values []ChangelogEntry `json:"values"`
-}
-
 // Comment represents a Comment on an issue
 type Comment struct {
 	Author struct {
@@ -71,30 +51,6 @@ type Comment struct {
 // CommentList contains all comments for an issue
 type CommentList struct {
 	Comments []Comment `json:"comments"`
-}
-
-// EpicUpdateInfo contains info about changes to an epic's subtasks
-type EpicUpdateInfo struct {
-	EpicKey        string
-	EpicSummary    string
-	SubtaskUpdates []SubtaskUpdate
-}
-
-// SubtaskUpdate contains info about changes to a subtask
-type SubtaskUpdate struct {
-	Key           string
-	Summary       string
-	Description   string
-	Status        string
-	StatusChanges []string
-	Comments      []CommentInfo
-}
-
-// CommentInfo contains simplified comment information
-type CommentInfo struct {
-	Author  string
-	Created string
-	Body    string
 }
 
 // createRequest builds a new authenticated HTTP request
@@ -171,7 +127,17 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 		return nil, err
 	}
 
-	return result.Issues, nil
+	issues := make([]Issue, 0, len(result.Issues))
+	for _, i := range result.Issues {
+		if err := i.updateIfStatusRecent(jc); err != nil {
+			return nil, fmt.Errorf("failed to update issue %s: %v", i.Key, err)
+		}
+		issues = append(issues, i)
+	}
+
+	return issues, nil
+}
+
 }
 
 // GetSubtasks retrieves all subtasks for an epic
@@ -191,20 +157,6 @@ func (jc *Client) GetSubtasks(epicKey string) (issues []Issue, err error) {
 	}
 
 	return result.Issues, nil
-}
-
-// GetIssueChangelog retrieves the changelog for an issue
-func (jc *Client) GetIssueChangelog(issueKey string) (issueHistory IssueHistory, err error) {
-	defer decorate.OnError(&err, "failed to get issue changelog of %s", issueKey)
-
-	path := fmt.Sprintf("/rest/api/2/issue/%s/changelog", issueKey)
-
-	var result IssueHistory
-	if err := jiraGet(jc, path, &result); err != nil {
-		return IssueHistory{}, err
-	}
-
-	return result, nil
 }
 
 // GetIssueComments retrieves comments for an issue
