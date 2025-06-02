@@ -37,37 +37,23 @@ func NewClient(baseURL, user, token string) (*Client, error) {
 
 // Issue represents a Jira issue (epic or subtask)
 type Issue struct {
-	ID     string `json:"id"`
-	Key    string `json:"key"`
+	ID     string
+	Key    string
 	Fields struct {
-		Summary     string `json:"summary"`
-		Description string `json:"description"`
+		Summary     string
+		Description string
 		Status      struct {
-			Name string `json:"name"`
-		} `json:"status"`
-		Updated    string `json:"updated"`
-		IssueLinks []struct {
-			ID   string `json:"id"`
-			Type struct {
-				Name    string `json:"name"`
-				Inward  string `json:"inward"`
-				Outward string `json:"outward"`
-			} `json:"type"`
-			OutwardIssue *struct {
-				Key string `json:"key"`
-			} `json:"outwardIssue,omitempty"`
-			InwardIssue *struct {
-				Key string `json:"key"`
-			} `json:"inwardIssue,omitempty"`
-		} `json:"issuelinks"`
+			Name string
+		}
+		Updated  string
 		Subtasks []struct {
-			ID     string `json:"id"`
-			Key    string `json:"key"`
+			ID     string
+			Key    string
 			Fields struct {
-				Summary string `json:"summary"`
-			} `json:"fields"`
-		} `json:"subtasks"`
-	} `json:"fields"`
+				Summary string
+			}
+		}
+	}
 }
 
 // ChangelogItem represents a change to an issue
