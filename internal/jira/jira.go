@@ -159,34 +159,6 @@ func (jc *Client) GetSubtasks(epicKey string) (issues []Issue, err error) {
 	return result.Issues, nil
 }
 
-// GetIssueComments retrieves comments for an issue
-func (jc *Client) GetIssueComments(issueKey string) (comments CommentList, err error) {
-	defer decorate.OnError(&err, "failed to get issue comments for %s", issueKey)
-
-	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", issueKey)
-
-	var result CommentList
-	if err := jiraGet(jc, path, &result); err != nil {
-		return CommentList{}, err
-	}
-
-	return result, nil
-}
-
-// GetIssueDetails retrieves full details for an issue
-func (jc *Client) GetIssueDetails(issueKey string) (issue Issue, err error) {
-	defer decorate.OnError(&err, "failed to get detailed on issue %s", issueKey)
-
-	path := fmt.Sprintf("/rest/api/2/issue/%s", issueKey)
-
-	var result Issue
-	if err := jiraGet(jc, path, &result); err != nil {
-		return Issue{}, err
-	}
-
-	return result, nil
-}
-
 // AddComment adds a comment to an issue
 func (jc *Client) AddComment(issueKey, commentBody string) (err error) {
 	defer decorate.OnError(&err, "failed to psot comment on issue %s", issueKey)
