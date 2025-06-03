@@ -138,6 +138,21 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 	return issues, nil
 }
 
+// GetIssue retrieves a given issue and children subtasks assigned to it.
+func (jc *Client) GetIssue(key string) (issue Issue, err error) {
+	defer decorate.OnError(&err, "failed to retrieved issue %s", key)
+
+	path := fmt.Sprintf("/rest/api/2/issue/%s", key)
+
+	var result Issue
+	if err := jiraGet(jc, path, &result); err != nil {
+		return Issue{}, err
+	}
+
+	if err := result.refreshState(jc); err != nil {
+		return Issue{}, err
+	}
+	return result, nil
 }
 
 // GetSubtasks retrieves all subtasks for an epic
