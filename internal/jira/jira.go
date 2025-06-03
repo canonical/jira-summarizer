@@ -129,10 +129,7 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 
 	issues := make([]Issue, 0, len(result.Issues))
 	for _, i := range result.Issues {
-		if err := i.updateIfStatusRecent(jc); err != nil {
-			return nil, err
-		}
-		if err := i.updateRecentComments(jc); err != nil {
+		if err := i.refreshState(jc); err != nil {
 			return nil, err
 		}
 		issues = append(issues, i)

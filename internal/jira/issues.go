@@ -29,6 +29,18 @@ type Issue struct {
 
 const jiraTimeFormat = "2006-01-02T15:04:05.999-0700"
 
+// refreshState refreshes recent elements of the Issue itself.
+func (i *Issue) refreshState(jc *Client) error {
+	if err := i.updateIfStatusRecent(jc); err != nil {
+		return err
+	}
+	if err := i.updateRecentComments(jc); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // updateIfStatusRecent checks if the issue's status has changed recently
 // and marks it as RecentlyChanged if so.
 func (i *Issue) updateIfStatusRecent(jc *Client) (err error) {
