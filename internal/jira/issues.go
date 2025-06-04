@@ -24,8 +24,9 @@ type Issue struct {
 	}
 	Children []Issue
 	Comments []struct {
-		Author  string
 		Content string
+		Who     string
+		When    time.Time
 	}
 }
 
@@ -132,11 +133,13 @@ func (i *Issue) updateRecentComments(jc *Client) (err error) {
 		}
 
 		i.Comments = append(i.Comments, struct {
-			Author  string
 			Content string
+			Who     string
+			When    time.Time
 		}{
-			comment.Author.DisplayName,
 			comment.Body,
+			comment.Author.DisplayName,
+			createdTime,
 		})
 	}
 
