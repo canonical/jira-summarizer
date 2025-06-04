@@ -9,33 +9,30 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/ubuntu/decorate"
 )
 
 // Client handles API communication
 type Client struct {
-	username              string
-	token                 string
-	baseURL               *url.URL
-	client                *http.Client
-	changesMoreRecentThan time.Time
+	username string
+	token    string
+	baseURL  *url.URL
+	client   *http.Client
 }
 
 // NewClient creates a new Jira client
-func NewClient(baseURL, user, token string, changesMoreRecentThan time.Time) (*Client, error) {
+func NewClient(baseURL, user, token string) (*Client, error) {
 	base, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Client{
-		username:              user,
-		token:                 token,
-		baseURL:               base,
-		client:                &http.Client{},
-		changesMoreRecentThan: changesMoreRecentThan,
+		username: user,
+		token:    token,
+		baseURL:  base,
+		client:   &http.Client{},
 	}, nil
 }
 
@@ -129,7 +126,7 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 
 	issues := make([]Issue, 0, len(result.Issues))
 	for _, i := range result.Issues {
-		if err := i.refreshState(jc); err != nil {
+		if err := i.refresh(jc); err != nil {
 			return nil, err
 		}
 		issues = append(issues, i)
@@ -149,7 +146,7 @@ func (jc *Client) GetIssue(key string) (issue Issue, err error) {
 		return Issue{}, err
 	}
 
-	if err := result.refreshState(jc); err != nil {
+	if err := result.refresh(jc); err != nil {
 		return Issue{}, err
 	}
 	return result, nil

@@ -32,24 +32,23 @@ type Issue struct {
 
 const jiraTimeFormat = "2006-01-02T15:04:05.999-0700"
 
-// refreshState refreshes recent elements of the Issue itself.
-func (i *Issue) refreshState(jc *Client) error {
-	if err := i.updateIfStatusRecent(jc); err != nil {
+// refresh refreshes recent elements of the Issue itself.
+func (i *Issue) refresh(jc *Client) error {
+	if err := i.fetchStatusUpdate(jc); err != nil {
 		return err
 	}
-	if err := i.updateRecentComments(jc); err != nil {
+	if err := i.fetchComments(jc); err != nil {
 		return err
 	}
-	if err := i.getChildren(jc); err != nil {
+	if err := i.fetchChildren(jc); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// updateIfStatusRecent checks if the issue's status has changed recently
-// and marks it as RecentlyChanged if so.
-func (i *Issue) updateIfStatusRecent(jc *Client) (err error) {
+// fetchStatusUpdate marks last recent status change for the issue.
+func (i *Issue) fetchStatusUpdate(jc *Client) (err error) {
 	defer decorate.OnError(&err, "failed to check recent status change for issue %s", i.Key)
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s/changelog", i.Key)
@@ -73,12 +72,9 @@ func (i *Issue) updateIfStatusRecent(jc *Client) (err error) {
 
 outer:
 	for _, changeSet := range result.Values {
-		changeTime, err := time.Parse(jiraTimeFormat, changeSet.Created)
+		modTime, err := time.Parse(jiraTimeFormat, changeSet.Created)
 		if err != nil {
 			slog.Warn(fmt.Sprintf("failed to parse change time %s for issue %s: %v", changeSet.Created, i.Key, err))
-			continue
-		}
-		if changeTime.Before(jc.changesMoreRecentThan) {
 			continue
 		}
 
@@ -90,9 +86,9 @@ outer:
 				continue
 			}
 
-			if changedTime.After(i.Fields.Status.When) {
+			if modTime.After(i.Fields.Status.When) {
 				i.Fields.Status.Who = changeSet.Author.DisplayName
-				i.Fields.Status.When = changedTime
+				i.Fields.Status.When = modTime
 			}
 
 			break outer
@@ -102,11 +98,12 @@ outer:
 	return nil
 }
 
-// updateRecentComments checks and attach each recent issue's comment.
-func (i *Issue) updateRecentComments(jc *Client) (err error) {
+// fetchComments attaches all comments to the issue in ascending order.
+func (i *Issue) fetchComments(jc *Client) (err error) {
 	defer decorate.OnError(&err, "failed to get issue comments for %s", i.Key)
 
-	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", i.Key)
+	// get all Jira comments for the issue in ascending creation order.
+	path := fmt.Sprintf("/rest/api/2/issue/%s/comment?orderBy=created", i.Key)
 
 	var result struct {
 		Comments []struct {
@@ -128,10 +125,6 @@ func (i *Issue) updateRecentComments(jc *Client) (err error) {
 			continue
 		}
 
-		if createdTime.Before(jc.changesMoreRecentThan) {
-			continue
-		}
-
 		i.Comments = append(i.Comments, struct {
 			Content string
 			Who     string
@@ -146,8 +139,8 @@ func (i *Issue) updateRecentComments(jc *Client) (err error) {
 	return nil
 }
 
-// getChildren retrieves all children issues from the given one, recursively.
-func (i *Issue) getChildren(jc *Client) (err error) {
+// fetchChildren retrieves all children issues from the given one, recursively.
+func (i *Issue) fetchChildren(jc *Client) (err error) {
 	defer decorate.OnError(&err, "failed to gather children of %s", i.Key)
 
 	jql := fmt.Sprintf("parent = %s", i.Key)
@@ -163,10 +156,10 @@ func (i *Issue) getChildren(jc *Client) (err error) {
 
 	i.Children = make([]Issue, 0, len(children.Issues))
 	for _, child := range children.Issues {
-		if err := child.refreshState(jc); err != nil {
+		if err := child.refresh(jc); err != nil {
 			return err
 		}
-		if err := child.getChildren(jc); err != nil {
+		if err := child.fetchChildren(jc); err != nil {
 			return err
 		}
 		i.Children = append(i.Children, child)
