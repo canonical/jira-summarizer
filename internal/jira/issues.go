@@ -16,9 +16,10 @@ type Issue struct {
 	Fields struct {
 		Summary     string
 		Description string
-		Status      struct {
-			Name            string
-			RecentlyChanged bool
+		Status struct {
+			Name string
+			Who  string
+			When time.Time
 		}
 	}
 	Children []Issue
@@ -54,6 +55,9 @@ func (i *Issue) updateIfStatusRecent(jc *Client) (err error) {
 
 	var result struct {
 		Values []struct {
+			Author struct {
+				DisplayName string
+			}
 			Created string
 			Items   []struct {
 				Field    string `json:"field"`
@@ -85,7 +89,11 @@ outer:
 				continue
 			}
 
-			i.Fields.Status.RecentlyChanged = true
+			if changedTime.After(i.Fields.Status.When) {
+				i.Fields.Status.Who = changeSet.Author.DisplayName
+				i.Fields.Status.When = changedTime
+			}
+
 			break outer
 		}
 	}
