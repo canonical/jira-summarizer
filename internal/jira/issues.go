@@ -63,8 +63,8 @@ func (i *Issue) fetchStatusUpdate(jc *Client) (err error) {
 			}
 			Created string
 			Items   []struct {
-				Field    string `json:"field"`
-				ToString string `json:"toString"`
+				Field    string
+				ToString string
 			}
 		}
 	}

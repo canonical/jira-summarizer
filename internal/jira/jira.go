@@ -1,7 +1,6 @@
 package jira
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -34,20 +33,6 @@ func NewClient(baseURL, user, token string) (*Client, error) {
 		baseURL:  base,
 		client:   &http.Client{},
 	}, nil
-}
-
-// Comment represents a Comment on an issue
-type Comment struct {
-	Author struct {
-		DisplayName string `json:"displayName"`
-	} `json:"author"`
-	Created string `json:"created"`
-	Body    string `json:"body"`
-}
-
-// CommentList contains all comments for an issue
-type CommentList struct {
-	Comments []Comment `json:"comments"`
 }
 
 // createRequest builds a new authenticated HTTP request
@@ -152,9 +137,9 @@ func (jc *Client) GetIssue(key string) (issue Issue, err error) {
 	return result, nil
 }
 
-// AddComment adds a comment to an issue
+// AddComment adds a comment to an issue.
 func (jc *Client) AddComment(issueKey, commentBody string) (err error) {
-	defer decorate.OnError(&err, "failed to psot comment on issue %s", issueKey)
+	defer decorate.OnError(&err, "failed to post comment on issue %s", issueKey)
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", issueKey)
 
