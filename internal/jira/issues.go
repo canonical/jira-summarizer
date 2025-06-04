@@ -3,6 +3,7 @@ package jira
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"time"
 
 	"github.com/ubuntu/decorate"
@@ -20,7 +21,7 @@ type Issue struct {
 			RecentlyChanged bool
 		}
 	}
-	Subtasks []Issue
+	Children []Issue
 	Comments []struct {
 		Author  string
 		Content string
@@ -35,6 +36,9 @@ func (i *Issue) refreshState(jc *Client) error {
 		return err
 	}
 	if err := i.updateRecentComments(jc); err != nil {
+		return err
+	}
+	if err := i.getChildren(jc); err != nil {
 		return err
 	}
 
@@ -126,6 +130,35 @@ func (i *Issue) updateRecentComments(jc *Client) (err error) {
 			comment.Author.DisplayName,
 			comment.Body,
 		})
+	}
+
+	return nil
+}
+
+// getChildren retrieves all children issues from the given one, recursively.
+func (i *Issue) getChildren(jc *Client) (err error) {
+	defer decorate.OnError(&err, "failed to gather children of %s", i.Key)
+
+	jql := fmt.Sprintf("parent = %s", i.Key)
+	encodedJQL := url.QueryEscape(jql)
+	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
+
+	var children struct {
+		Issues []Issue
+	}
+	if err := jiraGet(jc, path, &children); err != nil {
+		return err
+	}
+
+	i.Children = make([]Issue, 0, len(children.Issues))
+	for _, child := range children.Issues {
+		if err := child.refreshState(jc); err != nil {
+			return err
+		}
+		if err := child.getChildren(jc); err != nil {
+			return err
+		}
+		i.Children = append(i.Children, child)
 	}
 
 	return nil

@@ -155,25 +155,6 @@ func (jc *Client) GetIssue(key string) (issue Issue, err error) {
 	return result, nil
 }
 
-// GetSubtasks retrieves all subtasks for an epic
-func (jc *Client) GetSubtasks(epicKey string) (issues []Issue, err error) {
-	defer decorate.OnError(&err, "failed to retrieved subtasks of %s", epicKey)
-
-	// JQL to find all subtasks of the epic
-	jql := fmt.Sprintf("parent = %s OR \"Epic Link\" = %s", epicKey, epicKey)
-	encodedJQL := url.QueryEscape(jql)
-	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
-
-	var result struct {
-		Issues []Issue `json:"issues"`
-	}
-	if err := jiraGet(jc, path, &result); err != nil {
-		return nil, err
-	}
-
-	return result.Issues, nil
-}
-
 // AddComment adds a comment to an issue
 func (jc *Client) AddComment(issueKey, commentBody string) (err error) {
 	defer decorate.OnError(&err, "failed to psot comment on issue %s", issueKey)
