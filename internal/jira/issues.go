@@ -16,6 +16,9 @@ type Issue struct {
 	Fields struct {
 		Summary     string
 		Description string
+		IssueType   struct {
+			Name string
+		}
 		Status struct {
 			Name string
 			Who  string
