@@ -100,6 +100,27 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 
 	// Use JQL to find all epics assigned to the user that are NOT Done.
 	jql := "assignee = currentUser() AND issuetype = Epic AND status != Done"
+	return jc.getIssuesByJQL(jql)
+}
+
+func (jc *Client) GetIssuesByKeys(keys ...string) (issues []Issue, err error) {
+	defer decorate.OnError(&err, "failed to retrieved issues from given keys")
+
+	if len(keys) == 0 {
+		return nil, fmt.Errorf("no issue keys provided")
+	}
+
+	jql := fmt.Sprintf("key in (%s)", strings.Join(keys, ","))
+	return jc.getIssuesByJQL(jql)
+}
+
+func (jc *Client) getIssuesByJQL(jql string) (issues []Issue, err error) {
+	defer decorate.OnError(&err, "failed to retrieved issues from JQL")
+
+	if jql == "" {
+		return nil, fmt.Errorf("no JQL query provided")
+	}
+
 	encodedJQL := url.QueryEscape(jql)
 	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
 
