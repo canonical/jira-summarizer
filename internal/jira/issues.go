@@ -11,7 +11,6 @@ import (
 
 // Issue represents a Jira issue (epic or subtask)
 type Issue struct {
-	ID          string
 	Key         string
 	Summary     string
 	Description string
@@ -31,7 +30,6 @@ type Issue struct {
 
 // jsonIssue is a JSON representation of a Jira issue.
 type jsonIssue struct {
-	ID     string
 	Key    string
 	Fields struct {
 		Summary     string
@@ -49,7 +47,6 @@ type jsonIssue struct {
 // and initializes it with additional properties of that issue.
 func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
 	i := Issue{
-		ID:          j.ID,
 		Key:         j.Key,
 		Summary:     j.Fields.Summary,
 		Description: j.Fields.Description,
