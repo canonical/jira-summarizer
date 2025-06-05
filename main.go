@@ -53,12 +53,7 @@ func main() {
 		Short: fmt.Sprintf("%s posts update frequently", name),
 		Long:  "Summarize the high level tickets based on recent activity on its children. If no Jira ticket is provided, all active assigned epics are considered.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			jiraClient, err := jira.NewClient("https://warthogs.atlassian.net", vip.GetString("jira.username"), vip.GetString("jira.api_token"))
-			if err != nil {
-				return fmt.Errorf("invalid jira Client: %v", err)
-			}
-
-			return summarize(jiraClient, args...)
+			return runRoot(vip, args)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
@@ -90,22 +85,42 @@ You can also store them permanently in a configuration file named %s.yaml with:
 	}
 }
 
-func summarize(jc *jira.Client, topIssueKeys ...string) error {
+// run executes the main logic of the command.
+func runRoot(vip *viper.Viper, args []string) error {
+	jiraClient, err := jira.NewClient("https://warthogs.atlassian.net", vip.GetString("jira.username"), vip.GetString("jira.api_token"))
+	if err != nil {
+		return fmt.Errorf("invalid jira Client: %v", err)
+	}
+
+	sinceTime, err := sinceflag.ParseSince(vip.GetString("since"))
+	if err != nil {
+		return fmt.Errorf("invalid --since value: %w", err)
+	}
+
+	fmt.Println("Using since:", sinceTime.Format(time.RFC3339))
+
+	issues, err := collect(jiraClient, args...)
+	if err != nil {
+		return err
+	}
+
+	pp.Println(issues)
+	return nil
+}
+
+// collect returns issues from Jira based on provided keys or defaults to assigned epics.
+func collect(jc *jira.Client, topIssueKeys ...string) ([]jira.Issue, error) {
 	var topIssues []jira.Issue
 	var err error
 
 	if len(topIssueKeys) == 0 {
-		if topIssues, err = jc.GetMyAssignedEpics(); err != nil {
-			return fmt.Errorf("error fetching epics: %v", err)
-		}
+		topIssues, err = jc.GetMyAssignedEpics()
 	} else {
 		topIssues, err = jc.GetIssuesByKeys(topIssueKeys...)
 	}
 	if err != nil {
-		return fmt.Errorf("error fetching issues: %v", err)
+		return nil, fmt.Errorf("error fetching issues: %v", err)
 	}
 
-	pp.Println(topIssues)
-
-	return nil
+	return topIssues, nil
 }
