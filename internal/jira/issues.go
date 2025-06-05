@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ubuntu/decorate"
+	"golang.org/x/sync/errgroup"
 )
 
 // Issue represents a Jira issue (epic or subtask)
@@ -60,14 +61,19 @@ func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
 		},
 	}
 
-	if err := i.fetchStatusUpdate(jc); err != nil {
-		return Issue{}, err
-	}
-	if err := i.fetchComments(jc); err != nil {
-		return Issue{}, err
-	}
-	if err := i.fetchChildren(jc); err != nil {
-		return Issue{}, err
+	var g errgroup.Group
+	g.Go(func() error {
+		return i.fetchStatusUpdate(jc)
+	})
+	g.Go(func() error {
+		return i.fetchComments(jc)
+	})
+	g.Go(func() error {
+		return i.fetchChildren(jc)
+	})
+
+	if err := g.Wait(); err != nil {
+		return Issue{}, fmt.Errorf("failed to fetch additional issue data for %s: %w", j.Key, err)
 	}
 
 	return i, nil

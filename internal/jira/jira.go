@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/ubuntu/decorate"
+	"golang.org/x/sync/errgroup"
 )
 
 // Client handles API communication
@@ -109,12 +110,27 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 		return nil, err
 	}
 
-	issues := make([]Issue, 0, len(result.Issues))
+	var g errgroup.Group
+	var issueCh = make(chan Issue, len(result.Issues))
 	for _, jIssue := range result.Issues {
-		i, err := newIssueFromJsonIssue(jIssue, jc)
-		if err != nil {
-			return nil, err
-		}
+		g.Go(func() error {
+			i, err := newIssueFromJsonIssue(jIssue, jc)
+			if err != nil {
+				return err
+			}
+
+			issueCh <- i
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	close(issueCh)
+
+	issues = make([]Issue, 0, len(result.Issues))
+	for i := range issueCh {
 		issues = append(issues, i)
 	}
 
