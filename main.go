@@ -41,12 +41,6 @@ var configExample string
 
 func main() {
 	name := "pulse-summarizer"
-	var config struct {
-		Jira struct {
-			Username string
-			APIToken string `mapstructure:"api_token"`
-		}
-	}
 
 	vip, err := newViperConfig(name)
 	if err != nil {
@@ -67,10 +61,7 @@ func main() {
 			return summarize(jiraClient, args...)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := vip.Unmarshal(&config); err != nil {
-				fmt.Fprintf(os.Stderr, "unable to decode configuration: %v", err)
-				os.Exit(1)
-			}
+			cmd.SilenceUsage = true
 
 			if vip.Get("jira.username") == nil || vip.Get("jira.api_token") == nil {
 				slog.Error(fmt.Sprintf(`ERROR: missing configuration. Please set:
