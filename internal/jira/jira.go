@@ -103,15 +103,16 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
 
 	var result struct {
-		Issues []Issue
+		Issues []jsonIssue
 	}
 	if err := jiraGet(jc, path, &result); err != nil {
 		return nil, err
 	}
 
 	issues := make([]Issue, 0, len(result.Issues))
-	for _, i := range result.Issues {
-		if err := i.refresh(jc); err != nil {
+	for _, jIssue := range result.Issues {
+		i, err := newIssueFromJsonIssue(jIssue, jc)
+		if err != nil {
 			return nil, err
 		}
 		issues = append(issues, i)
@@ -126,15 +127,17 @@ func (jc *Client) GetIssue(key string) (issue Issue, err error) {
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s", key)
 
-	var result Issue
-	if err := jiraGet(jc, path, &result); err != nil {
+	var jIssue jsonIssue
+	if err := jiraGet(jc, path, &jIssue); err != nil {
 		return Issue{}, err
 	}
 
-	if err := result.refresh(jc); err != nil {
+	i, err := newIssueFromJsonIssue(jIssue, jc)
+	if err != nil {
 		return Issue{}, err
 	}
-	return result, nil
+
+	return i, nil
 }
 
 // AddComment adds a comment to an issue.

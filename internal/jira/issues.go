@@ -11,6 +11,26 @@ import (
 
 // Issue represents a Jira issue (epic or subtask)
 type Issue struct {
+	ID          string
+	Key         string
+	Summary     string
+	Description string
+	IssueType   string
+	Status      struct {
+		Name string
+		Who  string
+		When time.Time
+	}
+	Children []Issue
+	Comments []struct {
+		Content string
+		Who     string
+		When    time.Time
+	}
+}
+
+// jsonIssue is a JSON representation of a Jira issue.
+type jsonIssue struct {
 	ID     string
 	Key    string
 	Fields struct {
@@ -21,34 +41,42 @@ type Issue struct {
 		}
 		Status struct {
 			Name string
-			Who  string
-			When time.Time
 		}
 	}
-	Children []Issue
-	Comments []struct {
-		Content string
-		Who     string
-		When    time.Time
+}
+
+// newIssueFromJsonIssue creates a new Issue from the json issue representation
+// and initializes it with additional properties of that issue.
+func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
+	i := Issue{
+		ID:          j.ID,
+		Key:         j.Key,
+		Summary:     j.Fields.Summary,
+		Description: j.Fields.Description,
+		IssueType:   j.Fields.IssueType.Name,
+		Status: struct {
+			Name string
+			Who  string
+			When time.Time
+		}{
+			Name: j.Fields.Status.Name,
+		},
 	}
+
+	if err := i.fetchStatusUpdate(jc); err != nil {
+		return Issue{}, err
+	}
+	if err := i.fetchComments(jc); err != nil {
+		return Issue{}, err
+	}
+	if err := i.fetchChildren(jc); err != nil {
+		return Issue{}, err
+	}
+
+	return i, nil
 }
 
 const jiraTimeFormat = "2006-01-02T15:04:05.999-0700"
-
-// refresh refreshes recent elements of the Issue itself.
-func (i *Issue) refresh(jc *Client) error {
-	if err := i.fetchStatusUpdate(jc); err != nil {
-		return err
-	}
-	if err := i.fetchComments(jc); err != nil {
-		return err
-	}
-	if err := i.fetchChildren(jc); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 // fetchStatusUpdate marks last recent status change for the issue.
 func (i *Issue) fetchStatusUpdate(jc *Client) (err error) {
@@ -85,13 +113,13 @@ outer:
 			if item.Field != "status" {
 				continue
 			}
-			if i.Fields.Status.Name != item.ToString {
+			if i.Status.Name != item.ToString {
 				continue
 			}
 
-			if modTime.After(i.Fields.Status.When) {
-				i.Fields.Status.Who = changeSet.Author.DisplayName
-				i.Fields.Status.When = modTime
+			if modTime.After(i.Status.When) {
+				i.Status.Who = changeSet.Author.DisplayName
+				i.Status.When = modTime
 			}
 
 			break outer
@@ -151,18 +179,16 @@ func (i *Issue) fetchChildren(jc *Client) (err error) {
 	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
 
 	var children struct {
-		Issues []Issue
+		Issues []jsonIssue
 	}
 	if err := jiraGet(jc, path, &children); err != nil {
 		return err
 	}
 
 	i.Children = make([]Issue, 0, len(children.Issues))
-	for _, child := range children.Issues {
-		if err := child.refresh(jc); err != nil {
-			return err
-		}
-		if err := child.fetchChildren(jc); err != nil {
+	for _, childJson := range children.Issues {
+		child, err := newIssueFromJsonIssue(childJson, jc)
+		if err != nil {
 			return err
 		}
 		i.Children = append(i.Children, child)
