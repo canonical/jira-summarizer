@@ -39,6 +39,8 @@ func newViperConfig(name string) (*viper.Viper, error) {
 //go:embed pulse-summarizer.example.yaml
 var configExample string
 
+var validGroupOptions = []string{"top", "merge", "children"}
+
 func main() {
 	name := "pulse-summarizer"
 
@@ -68,6 +70,11 @@ You can also store them permanently in a configuration file named %s.yaml with:
 				os.Exit(2)
 			}
 
+			// Ensure group is one of the valid options.
+			if !slices.Contains(validGroupOptions, vip.GetString("group")) {
+				return fmt.Errorf("invalid group value: %q. Valid options are: %s.", vip.GetString("group"), strings.Join(validGroupOptions, ", "))
+			}
+
 			return nil
 		},
 	}
@@ -85,6 +92,17 @@ You can also store them permanently in a configuration file named %s.yaml with:
 	rootCmd.Flags().VarP(&since, "since", "s", "Start time or relative duration (e.g. '2004-10-20', '6mo', '1w', '5d')")
 	if err = vip.BindPFlag("since", rootCmd.Flags().Lookup("since")); err != nil {
 		log.Fatalf("program error: unable to bind flag 'since': %v", err)
+	}
+
+	var group string
+	rootCmd.Flags().StringVarP(&group, "group", "g", "top", fmt.Sprintf("Grouping behavior: %s", strings.Join(validGroupOptions, ", ")))
+	if err = rootCmd.RegisterFlagCompletionFunc("group", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		return []string{"top", "merge", "children"}, cobra.ShellCompDirectiveNoFileComp
+	}); err != nil {
+		log.Fatalf("program error: register shell completion failed: %v", err)
+	}
+	if err = vip.BindPFlag("group", rootCmd.Flags().Lookup("group")); err != nil {
+		log.Fatalf("program error: unable to bind flag 'group': %v", err)
 	}
 
 	if err := rootCmd.Execute(); err != nil {
@@ -107,7 +125,7 @@ func runRoot(vip *viper.Viper, args []string) error {
 
 	fmt.Println("Using since:", sinceTime.Format(time.RFC3339))
 
-	issues, err := collect(jiraClient, args...)
+	issues, err := collect(jiraClient, vip.GetString("group"), args...)
 	if err != nil {
 		return err
 	}
@@ -117,7 +135,7 @@ func runRoot(vip *viper.Viper, args []string) error {
 }
 
 // collect returns issues from Jira based on provided keys or defaults to assigned epics.
-func collect(jc *jira.Client, topIssueKeys ...string) ([]jira.Issue, error) {
+func collect(jc *jira.Client, groupStrategy string, topIssueKeys ...string) ([]jira.Issue, error) {
 	var topIssues []jira.Issue
 	var err error
 
@@ -130,5 +148,22 @@ func collect(jc *jira.Client, topIssueKeys ...string) ([]jira.Issue, error) {
 		return nil, fmt.Errorf("error fetching issues: %v", err)
 	}
 
-	return topIssues, nil
+	var results []jira.Issue
+	switch groupStrategy {
+	case "merge":
+		results = append(results, jira.Issue{
+			Key:      "virtual",
+			Children: topIssues,
+		})
+	case "children":
+		// Move top issue to all children of top issues (top issues can be objectives for instance and we want epic summary).
+		for _, issue := range topIssues {
+			results = append(results, issue.Children...)
+		}
+	default:
+		// No grouping, just return the top issues as they are.
+		results = topIssues
+	}
+
+	return results, nil
 }
