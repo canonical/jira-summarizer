@@ -69,7 +69,6 @@ You can also store them permanently in a configuration file named %s.yaml with:
 			}
 
 			return nil
-
 		},
 	}
 
@@ -77,6 +76,15 @@ You can also store them permanently in a configuration file named %s.yaml with:
 	err = vip.BindPFlag("jira.username", rootCmd.Flags().Lookup("jira-username"))
 	if err != nil {
 		log.Fatalf("programmer error: unable to bind flag jira-username: %v", err)
+	}
+
+	var since sinceflag.SinceValue
+	if err := since.Set("2w"); err != nil {
+		log.Fatalf("program error: invalid default value for --since: %v", err)
+	}
+	rootCmd.Flags().VarP(&since, "since", "s", "Start time or relative duration (e.g. '2004-10-20', '6mo', '1w', '5d')")
+	if err = vip.BindPFlag("since", rootCmd.Flags().Lookup("since")); err != nil {
+		log.Fatalf("program error: unable to bind flag 'since': %v", err)
 	}
 
 	if err := rootCmd.Execute(); err != nil {
