@@ -93,8 +93,6 @@ func jiraGet[T any](jc *Client, path string, result *T) (err error) {
 }
 
 // GetMyAssignedEpics retrieves all opened epics assigned to the current user and its children subtasks.
-// Recent changes are attached to it.
-// TODO: should retrieve DONE in the last recent changes.
 func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 	defer decorate.OnError(&err, "failed to retrieved current user's epics")
 
@@ -103,8 +101,9 @@ func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
 	return jc.getIssuesByJQL(jql)
 }
 
+// GetIssuesByKeys retrieves issues by their keys.
 func (jc *Client) GetIssuesByKeys(keys ...string) (issues []Issue, err error) {
-	defer decorate.OnError(&err, "failed to retrieved issues from given keys")
+	defer decorate.OnError(&err, "failed to retrieved issues from given keys: %s", strings.Join(keys, ", "))
 
 	if len(keys) == 0 {
 		return nil, fmt.Errorf("no issue keys provided")

@@ -75,7 +75,7 @@ You can also store them permanently in a configuration file named %s.yaml with:
 	rootCmd.Flags().String("jira-username", "", "jira username to use to connect to")
 	err = vip.BindPFlag("jira.username", rootCmd.Flags().Lookup("jira-username"))
 	if err != nil {
-		log.Fatalf("programmer error: unable to bind flag jira-username: %v", err)
+		log.Fatalf("program error: unable to bind flag jira-username: %v", err)
 	}
 
 	var since sinceflag.SinceValue
