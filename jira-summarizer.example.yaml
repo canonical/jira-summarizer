@@ -1,0 +1,4 @@
+jira:
+  username: <you_user@mail.com>
+  api_token: <your_jira_api_token>
+
