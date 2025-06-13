@@ -10,7 +10,8 @@ import (
 
 	_ "embed"
 
-	"github.com/canonical/pulse-summarizer/internal/jira"
+	"github.com/canonical/jira-summarizer/internal/jira"
+	"github.com/canonical/jira-summarizer/internal/sinceflag"
 	"github.com/k0kubun/pp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -36,13 +37,13 @@ func newViperConfig(name string) (*viper.Viper, error) {
 	return vip, nil
 }
 
-//go:embed pulse-summarizer.example.yaml
+//go:embed jira-summarizer.example.yaml
 var configExample string
 
 var validGroupOptions = []string{"top", "merge", "children"}
 
 func main() {
-	name := "pulse-summarizer"
+	name := "jira-summarizer"
 
 	vip, err := newViperConfig(name)
 	if err != nil {

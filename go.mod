@@ -1,4 +1,4 @@
-module github.com/canonical/pulse-summarizer
+module github.com/canonical/jira-summarizer
 
 go 1.24.2
 
