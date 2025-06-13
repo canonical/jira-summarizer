@@ -9,6 +9,9 @@ jira-summarizer
 *.so
 *.dylib
 
+# Actual configuration file
+jira-summarizer.yaml
+
 # Test binary, built with `go test -c`
 *.test
 
