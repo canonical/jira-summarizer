@@ -23,11 +23,53 @@ type Issue struct {
 		When time.Time
 	}
 	Children []Issue
-	Comments []struct {
-		Content string
-		Who     string
-		When    time.Time
+	Comments []Comment
+}
+
+// Comment represent a comment on a Jira issue.
+type Comment struct {
+	Content string
+	Who     string
+	When    time.Time
+}
+
+// KeepRecentEvents filters issues to only include those with recent changes.
+// Those can be recent comments or status changes.
+// It will signal if any changed happened on that issue or any of its children.
+func (i *Issue) KeepRecentEvents(sinceTime time.Time) (hasChanged bool) {
+	var hasChanges bool
+
+	if i.Created.After(sinceTime) {
+		hasChanges = true
 	}
+
+	if i.Status.When.After(sinceTime) {
+		hasChanges = true
+	} else {
+		i.Status.Name = ""
+	}
+
+	var recentComments []Comment
+	for _, comment := range i.Comments {
+		if comment.When.Before(sinceTime) {
+			continue
+		}
+		hasChanges = true
+		recentComments = append(recentComments, comment)
+	}
+	i.Comments = recentComments
+
+	var children []Issue
+	for _, child := range i.Children {
+		if !child.KeepRecentEvents(sinceTime) {
+			continue
+		}
+		hasChanges = true
+		children = append(children, child)
+	}
+	i.Children = children
+
+	return hasChanges
 }
 
 // jsonIssue is a JSON representation of a Jira issue.
