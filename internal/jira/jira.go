@@ -207,7 +207,7 @@ func formatJSONString(s string) string {
 	bytes, err := json.Marshal(s)
 	if err != nil {
 		// Fallback if marshaling fails
-		return fmt.Sprintf("\"%s\"", strings.Replace(s, "\"", "\\\"", -1))
+		return fmt.Sprintf("\"%s\"", strings.ReplaceAll(s, "\"", "\\\""))
 	}
 	return string(bytes)
 }

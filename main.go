@@ -73,7 +73,7 @@ You can also store them permanently in a configuration file named %s.yaml with:
 
 			// Ensure group is one of the valid options.
 			if !slices.Contains(validGroupOptions, vip.GetString("group")) {
-				return fmt.Errorf("invalid group value: %q. Valid options are: %s.", vip.GetString("group"), strings.Join(validGroupOptions, ", "))
+				return fmt.Errorf("invalid group value: %q. Valid options are: %s", vip.GetString("group"), strings.Join(validGroupOptions, ", "))
 			}
 
 			return nil
