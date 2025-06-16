@@ -119,19 +119,25 @@ func runRoot(vip *viper.Viper, args []string) error {
 		return fmt.Errorf("invalid jira Client: %v", err)
 	}
 
-	sinceTime, err := sinceflag.ParseSince(vip.GetString("since"))
-	if err != nil {
-		return fmt.Errorf("invalid --since value: %w", err)
-	}
-
-	fmt.Println("Using since:", sinceTime.Format(time.RFC3339))
-
 	issues, err := collect(jiraClient, vip.GetString("group"), args...)
 	if err != nil {
 		return err
 	}
 
-	pp.Println(issues)
+	sinceTime, err := sinceflag.ParseSince(vip.GetString("since"))
+	if err != nil {
+		return fmt.Errorf("invalid --since value: %w", err)
+	}
+
+	var relevantIssues []jira.Issue
+	for _, i := range issues {
+		if !i.KeepRecentEvents(sinceTime) {
+			continue
+		}
+		relevantIssues = append(relevantIssues, i)
+	}
+
+	pp.Println(relevantIssues)
 	return nil
 }
 
