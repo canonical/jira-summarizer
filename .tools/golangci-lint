@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Workaround: we want to use our locally pinned golangci-lint version.
+# Our vscode Go plugin supports the path set to this golangci-lint script.
+# However, it will try to determine the version of the tool by running `go version -m`` on this scripts,
+# which will fail because this is not a Go module and will fallback to version 1.
+# Hardcode for now the default flags used then.
+
+exec go tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --output.text.print-issued-lines=false --show-stats=false --output.text.path=stdout --path-mode=abs

@@ -1,0 +1,5 @@
+{
+  "go.alternateTools": {
+    "golangci-lint": "${workspaceFolder}/.tools/golangci-lint"
+  }
+}
