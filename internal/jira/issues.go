@@ -15,6 +15,7 @@ type Issue struct {
 	Key         string
 	Summary     string
 	Description string
+	Created     time.Time
 	IssueType   string
 	Status      struct {
 		Name string
@@ -35,6 +36,7 @@ type jsonIssue struct {
 	Fields struct {
 		Summary     string
 		Description string
+		Created     string
 		IssueType   struct {
 			Name string
 		}
@@ -44,13 +46,22 @@ type jsonIssue struct {
 	}
 }
 
+const jiraTimeFormat = "2006-01-02T15:04:05.999-0700"
+
 // newIssueFromJsonIssue creates a new Issue from the json issue representation
 // and initializes it with additional properties of that issue.
 func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
+	// converted the created time to time.Time
+	createdTime, err := time.Parse(jiraTimeFormat, j.Fields.Created)
+	if err != nil {
+		return Issue{}, fmt.Errorf("failed to parse created time %s for issue %s: %w", j.Fields.Created, j.Key, err)
+	}
+
 	i := Issue{
 		Key:         j.Key,
 		Summary:     j.Fields.Summary,
 		Description: j.Fields.Description,
+		Created:     createdTime,
 		IssueType:   j.Fields.IssueType.Name,
 		Status: struct {
 			Name string
@@ -78,8 +89,6 @@ func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
 
 	return i, nil
 }
-
-const jiraTimeFormat = "2006-01-02T15:04:05.999-0700"
 
 // fetchStatusUpdate marks last recent status change for the issue.
 func (i *Issue) fetchStatusUpdate(jc *Client) (err error) {
