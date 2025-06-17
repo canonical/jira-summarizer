@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/ubuntu/decorate"
@@ -71,6 +72,43 @@ func (i *Issue) KeepRecentEvents(sinceTime time.Time) (hasChanged bool) {
 	i.Children = children
 
 	return hasChanges
+}
+
+// String returns a string representation of the issue.
+func (i Issue) String() string {
+	var sb strings.Builder
+
+	// Virtual tasks, only used for issues.
+	if i.IssueType == "" {
+		if len(i.Children) > 0 {
+			sb.WriteString(fmt.Sprintf("Number of modified direct children tasks: %d\n", len(i.Children)))
+		}
+		return sb.String()
+	}
+
+	sb.WriteString(fmt.Sprintf(`Title: %s
+Link: %s
+Created on: %s
+`, i.Summary, i.URL, i.Created.Format(time.RFC3339)))
+
+	if i.Status.Name != "" {
+		sb.WriteString(fmt.Sprintf("Status changed to %s on %s by %s\n", i.Status.Name, i.Status.When.Format(time.RFC3339), i.Status.Who))
+	}
+
+	sb.WriteString(fmt.Sprintf("Description: %s\n", strings.ReplaceAll(strings.TrimSpace(i.Description), "\n", "\n  ")))
+
+	if len(i.Comments) > 0 {
+		sb.WriteString("Comments:\n")
+		for _, comment := range i.Comments {
+			sb.WriteString(fmt.Sprintf("  - %s (%s): %s\n", comment.Who, comment.When.Format(time.RFC3339), strings.ReplaceAll(strings.TrimSpace(comment.Content), "\n", "\n      ")))
+		}
+	}
+
+	if len(i.Children) > 0 {
+		sb.WriteString(fmt.Sprintf("Number of modified direct children tasks: %d\n", len(i.Children)))
+	}
+
+	return sb.String()
 }
 
 // jsonIssue is a JSON representation of a Jira issue.
