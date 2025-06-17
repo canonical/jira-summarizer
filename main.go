@@ -131,6 +131,11 @@ func runRoot(vip *viper.Viper, args []string) error {
 
 	issues = filterEvents(issues, sinceTime)
 
-	fmt.Print(report(issues))
+	for _, r := range report(issues) {
+		fmt.Println("------------------------------------------------------------------------------------------------------------")
+		fmt.Println(r)
+		fmt.Println()
+	}
+
 	return nil
 }

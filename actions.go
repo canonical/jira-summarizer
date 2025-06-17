@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/canonical/jira-summarizer/internal/jira"
@@ -52,4 +53,25 @@ func filterEvents(issues []jira.Issue, sinceTime time.Time) []jira.Issue {
 		relevantIssues = append(relevantIssues, i)
 	}
 	return relevantIssues
+}
+
+func report(topIssues []jira.Issue) []string {
+	var reports []string
+	for _, topIssue := range topIssues {
+		var r strings.Builder
+		if len(topIssue.Children) > 0 {
+			// Don't show comments on top issues which are embedder, as they can be generated from children work.
+			topIssue.Comments = nil
+			r.WriteString("This top issue is tracking all children work here")
+			if topIssue.IssueType != "" {
+				r.WriteString("and its Title and Description are here only for context")
+			}
+			r.WriteString(".\n")
+		}
+
+		r.WriteString(topIssue.Format(false))
+		reports = append(reports, strings.TrimRight(r.String(), "| \n"))
+	}
+
+	return reports
 }
