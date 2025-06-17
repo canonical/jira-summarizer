@@ -129,13 +129,7 @@ func runRoot(vip *viper.Viper, args []string) error {
 		return fmt.Errorf("invalid --since value: %w", err)
 	}
 
-	var relevantIssues []jira.Issue
-	for _, i := range issues {
-		if !i.KeepRecentEvents(sinceTime) {
-			continue
-		}
-		relevantIssues = append(relevantIssues, i)
-	}
+	issues = filterEvents(issues, sinceTime)
 
 	pp.Println(relevantIssues)
 	return nil
@@ -173,4 +167,17 @@ func collect(jc *jira.Client, groupStrategy string, topIssueKeys ...string) ([]j
 	}
 
 	return results, nil
+}
+
+// filterEvents filters issues based on recent events since the given time.
+// It returns only those issues that have events within the specified time frame.
+func filterEvents(issues []jira.Issue, sinceTime time.Time) []jira.Issue {
+	var relevantIssues []jira.Issue
+	for _, i := range issues {
+		if !i.KeepRecentEvents(sinceTime) {
+			continue
+		}
+		relevantIssues = append(relevantIssues, i)
+	}
+	return relevantIssues
 }
