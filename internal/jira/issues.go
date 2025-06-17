@@ -91,6 +91,9 @@ func (i Issue) Format(indent bool) string {
 	}
 
 	prefix := "|  "
+	if !indent {
+		prefix = ""
+	}
 	return prefix + strings.ReplaceAll(sb.String(), "\n", "\n"+prefix)
 }
 
