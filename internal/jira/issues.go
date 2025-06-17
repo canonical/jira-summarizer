@@ -13,6 +13,7 @@ import (
 // Issue represents a Jira issue (epic or subtask)
 type Issue struct {
 	Key         string
+	URL         string
 	Summary     string
 	Description string
 	Created     time.Time
@@ -101,6 +102,7 @@ func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
 
 	i := Issue{
 		Key:         j.Key,
+		URL:         fmt.Sprintf("%s/browse/%s", jc.baseURL, j.Key),
 		Summary:     j.Fields.Summary,
 		Description: j.Fields.Description,
 		Created:     createdTime,
