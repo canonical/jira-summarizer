@@ -158,10 +158,10 @@ func collect(jc *jira.Client, groupStrategy string, topIssueKeys ...string) ([]j
 	var results []jira.Issue
 	switch groupStrategy {
 	case "merge":
-		results = append(results, jira.Issue{
+		results = []jira.Issue{{
 			Key:      "virtual",
 			Children: topIssues,
-		})
+		}}
 	case "children":
 		// Move top issue to all children of top issues (top issues can be objectives for instance and we want epic summary).
 		for _, issue := range topIssues {
