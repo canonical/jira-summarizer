@@ -74,6 +74,26 @@ func (i *Issue) KeepRecentEvents(sinceTime time.Time) (hasChanged bool) {
 	return hasChanges
 }
 
+// Format returns a formatted representation of the issue and its children.
+func (i Issue) Format(indent bool) string {
+	var sb strings.Builder
+
+	sb.WriteString(i.String())
+
+	for index, child := range i.Children {
+		if index == 0 {
+			sb.WriteString("\nChildren tasks:\n|\n")
+		}
+
+		sb.WriteString("|- Task: " + child.Key + "\n")
+		sb.WriteString(child.Format(true))
+		sb.WriteString("\n")
+	}
+
+	prefix := "|  "
+	return prefix + strings.ReplaceAll(sb.String(), "\n", "\n"+prefix)
+}
+
 // String returns a string representation of the issue.
 func (i Issue) String() string {
 	var sb strings.Builder
