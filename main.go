@@ -76,6 +76,14 @@ You can also store them permanently in a configuration file named %s.yaml with:
 				return fmt.Errorf("invalid group value: %q. Valid options are: %s", vip.GetString("group"), strings.Join(validGroupOptions, ", "))
 			}
 
+			// Fallback to summary only when using the merge strategy.
+			if vip.GetString("group") == "merge" {
+				if !vip.GetBool("no-post") {
+					slog.Info("merge grouping strategy in a virtual top ticket can’t be posted on Jira. Only doing a summary.")
+					vip.Set("no-post", true)
+				}
+			}
+
 			return nil
 		},
 	}
@@ -84,6 +92,12 @@ You can also store them permanently in a configuration file named %s.yaml with:
 	err = vip.BindPFlag("jira.username", rootCmd.Flags().Lookup("jira-username"))
 	if err != nil {
 		log.Fatalf("program error: unable to bind flag jira-username: %v", err)
+	}
+
+	rootCmd.Flags().Bool("no-post", false, "do not post offer posting the summary to the grouping jira tickets")
+	err = vip.BindPFlag("no-post", rootCmd.Flags().Lookup("no-post"))
+	if err != nil {
+		log.Fatalf("program error: unable to bind flag no-post: %v", err)
 	}
 
 	var since sinceflag.SinceValue
@@ -132,9 +146,10 @@ func runRoot(vip *viper.Viper, args []string) error {
 	issues = filterEvents(issues, sinceTime)
 
 	for _, r := range report(issues) {
-		fmt.Println("------------------------------------------------------------------------------------------------------------")
-		fmt.Println(r)
-		fmt.Println()
+		switch {
+		case vip.GetBool("no-post"):
+			printTopSummary(r)
+		}
 	}
 
 	return nil
