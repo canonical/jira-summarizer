@@ -55,8 +55,15 @@ func filterEvents(issues []jira.Issue, sinceTime time.Time) []jira.Issue {
 	return relevantIssues
 }
 
-func report(topIssues []jira.Issue) []string {
-	var reports []string
+// issueReport represents a formatted report for a Jira issue.
+type issueReport struct {
+	issue   jira.Issue
+	summary string
+}
+
+// report generates a formatted string representation for the top issues and their children.
+func report(topIssues []jira.Issue) []issueReport {
+	var reports []issueReport
 	for _, topIssue := range topIssues {
 		var r strings.Builder
 		if len(topIssue.Children) > 0 {
@@ -70,7 +77,10 @@ func report(topIssues []jira.Issue) []string {
 		}
 
 		r.WriteString(topIssue.Format(false))
-		reports = append(reports, strings.TrimRight(r.String(), "| \n"))
+		reports = append(reports, issueReport{
+			issue:   topIssue,
+			summary: strings.TrimRight(r.String(), "| \n"),
+		})
 	}
 
 	return reports

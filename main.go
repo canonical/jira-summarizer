@@ -148,7 +148,7 @@ func runRoot(vip *viper.Viper, args []string) error {
 	for _, r := range report(issues) {
 		switch {
 		case vip.GetBool("no-post"):
-			printTopSummary(r)
+			printTopSummary(r.summary)
 		}
 	}
 
