@@ -97,6 +97,8 @@ func (i Issue) Format(indent bool) string {
 	return prefix + strings.ReplaceAll(sb.String(), "\n", "\n"+prefix)
 }
 
+const timeFormat = "02/01/2006 15:04"
+
 // String returns a string representation of the issue.
 func (i Issue) String() string {
 	var sb strings.Builder
@@ -112,10 +114,10 @@ func (i Issue) String() string {
 	sb.WriteString(fmt.Sprintf(`Title: %s
 Link: %s
 Created on: %s
-`, i.Summary, i.URL, i.Created.Format(time.RFC3339)))
+`, i.Summary, i.URL, i.Created.Format(timeFormat)))
 
 	if i.Status.Name != "" {
-		sb.WriteString(fmt.Sprintf("Status changed to %s on %s by %s\n", i.Status.Name, i.Status.When.Format(time.RFC3339), i.Status.Who))
+		sb.WriteString(fmt.Sprintf("Status changed to %s on %s by %s\n", i.Status.Name, i.Status.When.Format(timeFormat), i.Status.Who))
 	}
 
 	sb.WriteString(fmt.Sprintf("Description: %s\n", strings.ReplaceAll(strings.TrimSpace(i.Description), "\n", "\n  ")))
@@ -123,7 +125,7 @@ Created on: %s
 	if len(i.Comments) > 0 {
 		sb.WriteString("Comments:\n")
 		for _, comment := range i.Comments {
-			sb.WriteString(fmt.Sprintf("  - %s (%s): %s\n", comment.Who, comment.When.Format(time.RFC3339), strings.ReplaceAll(strings.TrimSpace(comment.Content), "\n", "\n      ")))
+			sb.WriteString(fmt.Sprintf("  - %s (%s): %s\n", comment.Who, comment.When.Format(timeFormat), strings.ReplaceAll(strings.TrimSpace(comment.Content), "\n", "\n      ")))
 		}
 	}
 
