@@ -149,6 +149,11 @@ func runRoot(vip *viper.Viper, args []string) error {
 		switch {
 		case vip.GetBool("no-post"):
 			printTopSummary(r.summary)
+		default:
+			if err := editSummaryAndPost(jiraClient, r); err != nil {
+				return fmt.Errorf("error posting new summary: %v", err)
+			}
+
 		}
 	}
 
