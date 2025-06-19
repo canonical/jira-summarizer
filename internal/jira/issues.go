@@ -1,8 +1,10 @@
 package jira
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -44,6 +46,37 @@ func (i Issue) Embedder() bool {
 	}
 
 	return false
+}
+
+// AddComment adds a comment to an issue.
+func (i *Issue) AddComment(jc *Client, commentBody string) (err error) {
+	defer decorate.OnError(&err, "failed to add comment on issue %s", i.Key)
+
+	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", i.Key)
+
+	d := fmt.Sprintf(`{"body": %s}`, formatJSONString(commentBody))
+	req, err := jc.createRequest("POST", path, d)
+	if err != nil {
+		return err
+	}
+
+	resp, err := jc.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("got network status: %s", resp.Status)
+	}
+
+	/* Let’s not refresh the issue after adding a comment for now, as it can be expensive
+	and they are not reused during the program execution for now.
+	if *i, err = i.fetchComments(jc); err != nil {
+		return fmt.Errorf("failed to refresh issue after adding comment: %v", err)
+	}*/
+
+	return nil
 }
 
 // KeptRecentEvents filters issues to only include those with recent changes.
@@ -325,4 +358,14 @@ func (i *Issue) fetchChildren(jc *Client) (err error) {
 	}
 
 	return nil
+}
+
+// formatJSONString properly escapes a string for use in JSON
+func formatJSONString(s string) string {
+	bytes, err := json.Marshal(s)
+	if err != nil {
+		// Fallback if marshaling fails
+		return fmt.Sprintf("\"%s\"", strings.ReplaceAll(s, "\"", "\\\""))
+	}
+	return string(bytes)
 }
