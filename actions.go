@@ -52,7 +52,7 @@ func filterEvents(topIssues []jira.Issue, sinceTime time.Time) []jira.Issue {
 			i.Comments = nil
 		}
 
-		if !i.KeepRecentEvents(sinceTime) {
+		if !i.KeptRecentEvents(sinceTime) {
 			continue
 		}
 		relevantIssues = append(relevantIssues, i)

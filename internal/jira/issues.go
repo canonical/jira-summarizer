@@ -46,10 +46,10 @@ func (i Issue) Embedder() bool {
 	return false
 }
 
-// KeepRecentEvents filters issues to only include those with recent changes.
+// KeptRecentEvents filters issues to only include those with recent changes.
 // Those can be recent comments or status changes.
 // It will signal if any changed happened on that issue or any of its children.
-func (i *Issue) KeepRecentEvents(sinceTime time.Time) (hasChanged bool) {
+func (i *Issue) KeptRecentEvents(sinceTime time.Time) (hasChanged bool) {
 	var hasChanges bool
 
 	if i.Created.After(sinceTime) {
@@ -74,7 +74,7 @@ func (i *Issue) KeepRecentEvents(sinceTime time.Time) (hasChanged bool) {
 
 	var children []Issue
 	for _, child := range i.Children {
-		if !child.KeepRecentEvents(sinceTime) {
+		if !child.KeptRecentEvents(sinceTime) {
 			continue
 		}
 		hasChanges = true
