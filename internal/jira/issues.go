@@ -35,6 +35,17 @@ type Comment struct {
 	When    time.Time
 }
 
+// Embedder returns if top issues is only used only as embedder:
+// - it’s either a virtual issue (no key)
+// - or it has children
+func (i Issue) Embedder() bool {
+	if i.Key == "" || len(i.Children) > 0 {
+		return true
+	}
+
+	return false
+}
+
 // KeepRecentEvents filters issues to only include those with recent changes.
 // Those can be recent comments or status changes.
 // It will signal if any changed happened on that issue or any of its children.

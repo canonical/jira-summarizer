@@ -42,11 +42,16 @@ func collect(jc *jira.Client, groupStrategy string, topIssueKeys ...string) ([]j
 	return results, nil
 }
 
-// filterEvents filters issues based on recent events since the given time.
+// filterEvents filters top issues based on recent events since the given time.
 // It returns only those issues that have events within the specified time frame.
-func filterEvents(issues []jira.Issue, sinceTime time.Time) []jira.Issue {
+func filterEvents(topIssues []jira.Issue, sinceTime time.Time) []jira.Issue {
 	var relevantIssues []jira.Issue
-	for _, i := range issues {
+	for _, i := range topIssues {
+		if i.Embedder() {
+			// Don't show comments on top issues which are embedder, as they can be generated from children work.
+			i.Comments = nil
+		}
+
 		if !i.KeepRecentEvents(sinceTime) {
 			continue
 		}
@@ -66,9 +71,7 @@ func report(topIssues []jira.Issue) []issueReport {
 	var reports []issueReport
 	for _, topIssue := range topIssues {
 		var r strings.Builder
-		if len(topIssue.Children) > 0 {
-			// Don't show comments on top issues which are embedder, as they can be generated from children work.
-			topIssue.Comments = nil
+		if topIssue.Embedder() {
 			r.WriteString("< This top issue is tracking all children work here")
 			if topIssue.IssueType != "" {
 				r.WriteString(" and its Title and Description are here only for context")
