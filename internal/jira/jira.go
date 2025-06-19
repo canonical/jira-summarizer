@@ -177,14 +177,13 @@ func (jc *Client) GetIssue(key string) (issue Issue, err error) {
 }
 
 // AddComment adds a comment to an issue.
-func (jc *Client) AddComment(issueKey, commentBody string) (err error) {
-	defer decorate.OnError(&err, "failed to post comment on issue %s", issueKey)
+func (i *Issue) AddComment(jc *Client, commentBody string) (err error) {
+	defer decorate.OnError(&err, "failed to add comment on issue %s", i.Key)
 
-	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", issueKey)
+	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", i.Key)
 
-	commentJSON := fmt.Sprintf(`{"body": %s}`, formatJSONString(commentBody))
-
-	req, err := jc.createRequest("POST", path, commentJSON)
+	d := fmt.Sprintf(`{"body": %s}`, formatJSONString(commentBody))
+	req, err := jc.createRequest("POST", path, d)
 	if err != nil {
 		return err
 	}
