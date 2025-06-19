@@ -198,6 +198,12 @@ func (i *Issue) AddComment(jc *Client, commentBody string) (err error) {
 		return fmt.Errorf("got network status: %s", resp.Status)
 	}
 
+	/* Let’s not refresh the issue after adding a comment for now, as it can be expensive
+	and they are not reused during the program execution for now.
+	if *i, err = i.fetchComments(jc); err != nil {
+		return fmt.Errorf("failed to refresh issue after adding comment: %v", err)
+	}*/
+
 	return nil
 }
 
