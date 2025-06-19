@@ -6,13 +6,13 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 
 	_ "embed"
 
 	"github.com/canonical/jira-summarizer/internal/jira"
 	"github.com/canonical/jira-summarizer/internal/sinceflag"
-	"github.com/k0kubun/pp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -43,6 +43,9 @@ var configExample string
 var validGroupOptions = []string{"top", "merge", "children"}
 
 func main() {
+	// Remove date and time from log output to keep it clean.
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
+
 	name := "jira-summarizer"
 
 	vip, err := newViperConfig(name)
@@ -52,9 +55,10 @@ func main() {
 	}
 
 	rootCmd := cobra.Command{
-		Use:   fmt.Sprintf("%s [JIRA_TICKET…]", name),
-		Short: fmt.Sprintf("%s posts update frequently", name),
-		Long:  "Summarize the high level tickets based on recent activity on its children. If no Jira ticket is provided, all active assigned epics are considered.",
+		Use:           fmt.Sprintf("%s [JIRA_TICKET…]", name),
+		Short:         fmt.Sprintf("%s posts update frequently", name),
+		Long:          "Summarize the high level tickets based on recent activity on its children. If no Jira ticket is provided, all active assigned epics are considered.",
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRoot(vip, args)
 		},
@@ -62,13 +66,12 @@ func main() {
 			cmd.SilenceUsage = true
 
 			if vip.Get("jira.username") == nil || vip.Get("jira.api_token") == nil {
-				slog.Error(fmt.Sprintf(`ERROR: missing configuration. Please set:
+				return fmt.Errorf(`missing configuration. Please set:
   * PULSE_SUMMARIZER_JIRA_USERNAME (your email)")
   * PULSE_SUMMARIZER_IRA_API_TOKEN (API token from your Atlassian account)")
 You can also store them permanently in a configuration file named %s.yaml with:
 
-%v`, name, configExample))
-				os.Exit(2)
+%v`, name, configExample)
 			}
 
 			// Ensure group is one of the valid options.
@@ -94,7 +97,7 @@ You can also store them permanently in a configuration file named %s.yaml with:
 		log.Fatalf("program error: unable to bind flag jira-username: %v", err)
 	}
 
-	rootCmd.Flags().Bool("no-post", false, "do not post offer posting the summary to the grouping jira tickets")
+	rootCmd.Flags().Bool("no-post", false, "do not offer posting the summary to the grouping jira tickets")
 	err = vip.BindPFlag("no-post", rootCmd.Flags().Lookup("no-post"))
 	if err != nil {
 		log.Fatalf("program error: unable to bind flag no-post: %v", err)
