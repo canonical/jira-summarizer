@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -37,7 +38,7 @@ func NewClient(baseURL, user, token string) (*Client, error) {
 }
 
 // createRequest builds a new authenticated HTTP request
-func (jc *Client) createRequest(method, path, body string) (*http.Request, error) {
+func (jc *Client) createRequest(ctx context.Context, method, path, body string) (*http.Request, error) {
 	rel, err := url.Parse(path)
 	if err != nil {
 		return nil, err
@@ -50,7 +51,7 @@ func (jc *Client) createRequest(method, path, body string) (*http.Request, error
 		bodyReader = strings.NewReader(body)
 	}
 
-	req, err := http.NewRequest(method, reqURL.String(), bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, reqURL.String(), bodyReader)
 	if err != nil {
 		return nil, err
 	}
@@ -64,8 +65,8 @@ func (jc *Client) createRequest(method, path, body string) (*http.Request, error
 	return req, nil
 }
 
-func jiraGet[T any](jc *Client, path string, result *T) (err error) {
-	req, err := jc.createRequest("GET", path, "")
+func jiraGet[T any](ctx context.Context, jc *Client, path string, result *T) (err error) {
+	req, err := jc.createRequest(ctx, "GET", path, "")
 	if err != nil {
 		return err
 	}
@@ -126,7 +127,7 @@ func (jc *Client) getIssuesByJQL(jql string) (issues []Issue, err error) {
 	var result struct {
 		Issues []jsonIssue
 	}
-	if err := jiraGet(jc, path, &result); err != nil {
+	if err := jiraGet(context.Background(), jc, path, &result); err != nil {
 		return nil, err
 	}
 
@@ -134,7 +135,7 @@ func (jc *Client) getIssuesByJQL(jql string) (issues []Issue, err error) {
 	var issueCh = make(chan Issue, len(result.Issues))
 	for _, jIssue := range result.Issues {
 		g.Go(func() error {
-			i, err := newIssueFromJsonIssue(jIssue, jc)
+			i, err := newIssueFromJsonIssue(context.Background(), jIssue, jc)
 			if err != nil {
 				return err
 			}
@@ -163,12 +164,14 @@ func (jc *Client) GetIssue(key string) (issue Issue, err error) {
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s", key)
 
+	ctx := context.Background()
+
 	var jIssue jsonIssue
-	if err := jiraGet(jc, path, &jIssue); err != nil {
+	if err := jiraGet(ctx, jc, path, &jIssue); err != nil {
 		return Issue{}, err
 	}
 
-	i, err := newIssueFromJsonIssue(jIssue, jc)
+	i, err := newIssueFromJsonIssue(ctx, jIssue, jc)
 	if err != nil {
 		return Issue{}, err
 	}

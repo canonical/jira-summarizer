@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -55,7 +56,7 @@ func (i *Issue) AddComment(jc *Client, commentBody string) (err error) {
 	path := fmt.Sprintf("/rest/api/2/issue/%s/comment", i.Key)
 
 	d := fmt.Sprintf(`{"body": %s}`, formatJSONString(commentBody))
-	req, err := jc.createRequest("POST", path, d)
+	req, err := jc.createRequest(context.Background(), "POST", path, d)
 	if err != nil {
 		return err
 	}
@@ -200,7 +201,7 @@ const jiraTimeFormat = "2006-01-02T15:04:05.999-0700"
 
 // newIssueFromJsonIssue creates a new Issue from the json issue representation
 // and initializes it with additional properties of that issue.
-func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
+func newIssueFromJsonIssue(ctx context.Context, j jsonIssue, jc *Client) (Issue, error) {
 	// converted the created time to time.Time
 	createdTime, err := time.Parse(jiraTimeFormat, j.Fields.Created)
 	if err != nil {
@@ -223,15 +224,17 @@ func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
 		},
 	}
 
-	var g errgroup.Group
+	// Shared context for fetching additional data. First error on an issue cancel all other requests, including children.
+	// If fetchChildren returns an errors, it will also cancel the global context as .Wait() will return the first error.
+	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return i.fetchStatusUpdate(jc)
+		return i.fetchStatusUpdate(ctx, jc)
 	})
 	g.Go(func() error {
-		return i.fetchComments(jc)
+		return i.fetchComments(ctx, jc)
 	})
 	g.Go(func() error {
-		return i.fetchChildren(jc)
+		return i.fetchChildren(ctx, jc)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -242,7 +245,7 @@ func newIssueFromJsonIssue(j jsonIssue, jc *Client) (Issue, error) {
 }
 
 // fetchStatusUpdate marks last recent status change for the issue.
-func (i *Issue) fetchStatusUpdate(jc *Client) (err error) {
+func (i *Issue) fetchStatusUpdate(ctx context.Context, jc *Client) (err error) {
 	defer decorate.OnError(&err, "failed to check recent status change for issue %s", i.Key)
 
 	path := fmt.Sprintf("/rest/api/2/issue/%s/changelog", i.Key)
@@ -260,8 +263,8 @@ func (i *Issue) fetchStatusUpdate(jc *Client) (err error) {
 		}
 	}
 
-	if err := jiraGet(jc, path, &result); err != nil {
-		return nil
+	if err := jiraGet(ctx, jc, path, &result); err != nil {
+		return err
 	}
 
 outer:
@@ -293,7 +296,7 @@ outer:
 }
 
 // fetchComments attaches all comments to the issue in ascending order.
-func (i *Issue) fetchComments(jc *Client) (err error) {
+func (i *Issue) fetchComments(ctx context.Context, jc *Client) (err error) {
 	defer decorate.OnError(&err, "failed to get issue comments for %s", i.Key)
 
 	// get all Jira comments for the issue in ascending creation order.
@@ -308,7 +311,7 @@ func (i *Issue) fetchComments(jc *Client) (err error) {
 			Body    string
 		}
 	}
-	if err := jiraGet(jc, path, &result); err != nil {
+	if err := jiraGet(ctx, jc, path, &result); err != nil {
 		return err
 	}
 
@@ -334,7 +337,7 @@ func (i *Issue) fetchComments(jc *Client) (err error) {
 }
 
 // fetchChildren retrieves all children issues from the given one, recursively.
-func (i *Issue) fetchChildren(jc *Client) (err error) {
+func (i *Issue) fetchChildren(ctx context.Context, jc *Client) (err error) {
 	defer decorate.OnError(&err, "failed to gather children of %s", i.Key)
 
 	jql := fmt.Sprintf("parent = %s", i.Key)
@@ -344,13 +347,13 @@ func (i *Issue) fetchChildren(jc *Client) (err error) {
 	var children struct {
 		Issues []jsonIssue
 	}
-	if err := jiraGet(jc, path, &children); err != nil {
+	if err := jiraGet(ctx, jc, path, &children); err != nil {
 		return err
 	}
 
 	i.Children = make([]Issue, 0, len(children.Issues))
 	for _, childJson := range children.Issues {
-		child, err := newIssueFromJsonIssue(childJson, jc)
+		child, err := newIssueFromJsonIssue(ctx, childJson, jc)
 		if err != nil {
 			return err
 		}
