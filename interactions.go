@@ -23,8 +23,8 @@ const editableSeparator = "<----- ANY CONTENTS BELOW THIS WILL BE IGNORED ----->
 
 // editSummaryAndPost opens the editor with the provided issue summary and allows the user to edit it.
 // If the user empty the content or does not change it, it will ask if they want to skip posting.
-func editSummaryAndPost(jiraClient *jira.Client, r issueReport) error {
-	summary := fmt.Sprintf("\n\n%s\n\n%s", editableSeparator, r.summary)
+func editSummaryAndPost(jiraClient *jira.Client, issue jira.Issue, summary string) error {
+	summary = fmt.Sprintf("\n\n%s\n\n%s", editableSeparator, summary)
 	for {
 		edited, err := openInEditor(summary)
 		if err != nil {
@@ -41,7 +41,7 @@ func editSummaryAndPost(jiraClient *jira.Client, r issueReport) error {
 			return nil
 		}
 
-		if err := r.issue.AddComment(jiraClient, edited); err != nil {
+		if err := issue.AddComment(jiraClient, edited); err != nil {
 			return err
 		}
 

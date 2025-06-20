@@ -136,28 +136,37 @@ func runRoot(vip *viper.Viper, args []string) error {
 		return fmt.Errorf("invalid jira Client: %v", err)
 	}
 
-	issues, err := collect(jiraClient, vip.GetString("group"), args...)
-	if err != nil {
-		return err
-	}
-
 	sinceTime, err := sinceflag.ParseSince(vip.GetString("since"))
 	if err != nil {
 		return fmt.Errorf("invalid --since value: %w", err)
 	}
 
-	issues = filterEvents(issues, sinceTime)
+	for issue, err := range getTopIssues(jiraClient, vip.GetString("group"), args...) {
+		if err != nil {
+			return err
+		}
 
-	for _, r := range report(issues) {
+		if issue.Embedder() {
+			// Don't show comments on top issues which are embedder, as they can be generated from children work.
+			issue.Comments = nil
+		}
+
+		if !issue.KeptRecentEvents(sinceTime) {
+			continue
+		}
+
+		summary := report(issue)
+
 		switch {
 		case vip.GetBool("no-post"):
-			printTopSummary(r.summary)
+			printTopSummary(summary)
 		default:
-			if err := editSummaryAndPost(jiraClient, r); err != nil {
+			if err := editSummaryAndPost(jiraClient, issue, summary); err != nil {
 				return fmt.Errorf("error posting new summary: %v", err)
 			}
 
 		}
+
 	}
 
 	return nil
