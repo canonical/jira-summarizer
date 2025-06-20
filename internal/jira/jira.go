@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"net/url"
 	"strings"
@@ -94,68 +95,114 @@ func jiraGet[T any](ctx context.Context, jc *Client, path string, result *T) (er
 }
 
 // GetMyAssignedEpics retrieves all opened epics assigned to the current user and its children subtasks.
-func (jc *Client) GetMyAssignedEpics() (epics []Issue, err error) {
-	defer decorate.OnError(&err, "failed to retrieved current user's epics")
-
-	// Use JQL to find all epics assigned to the user that are NOT Done.
-	jql := "assignee = currentUser() AND issuetype = Epic AND status != Done"
-	return jc.getIssuesByJQL(jql)
+func (jc *Client) GetMyAssignedEpics() iter.Seq2[Issue, error] {
+	return func(yield func(Issue, error) bool) {
+		// Use JQL to find all epics assigned to the user that are NOT Done.
+		jql := "assignee = currentUser() AND issuetype = Epic AND status != Done"
+		for issue, err := range jc.getIssuesByJQL(context.Background(), jql) {
+			if err != nil {
+				yield(Issue{}, fmt.Errorf("failed to retrieved current user's epics: %v", err))
+				return
+			}
+			if more := yield(issue, nil); !more {
+				return
+			}
+		}
+	}
 }
 
 // GetIssuesByKeys retrieves issues by their keys.
-func (jc *Client) GetIssuesByKeys(keys ...string) (issues []Issue, err error) {
-	defer decorate.OnError(&err, "failed to retrieved issues from given keys: %s", strings.Join(keys, ", "))
+func (jc *Client) GetIssuesByKeys(keys ...string) iter.Seq2[Issue, error] {
+	return func(yield func(Issue, error) bool) {
 
-	if len(keys) == 0 {
-		return nil, fmt.Errorf("no issue keys provided")
+		//defer decorate.OnError(&err, "failed to retrieved issues from given keys: %s", strings.Join(keys, ", "))
+
+		if len(keys) == 0 {
+			yield(Issue{}, fmt.Errorf("failed to retrieved issues: no issue keys provided"))
+			return
+		}
+
+		jql := fmt.Sprintf("key in (%s)", strings.Join(keys, ","))
+		for issue, err := range jc.getIssuesByJQL(context.Background(), jql) {
+			if err != nil {
+				yield(Issue{}, fmt.Errorf("ailed to retrieved issues from given keys (%s): %v", strings.Join(keys, ", "), err))
+				return
+			}
+			if more := yield(issue, nil); !more {
+				return
+			}
+		}
 	}
-
-	jql := fmt.Sprintf("key in (%s)", strings.Join(keys, ","))
-	return jc.getIssuesByJQL(jql)
 }
 
-func (jc *Client) getIssuesByJQL(jql string) (issues []Issue, err error) {
-	defer decorate.OnError(&err, "failed to retrieved issues from JQL")
+func (jc *Client) getIssuesByJQL(ctx context.Context, jql string) iter.Seq2[Issue, error] {
+	return func(yield func(Issue, error) bool) {
+		var iterErr error
+		defer func() {
+			if iterErr != nil {
+				yield(Issue{}, fmt.Errorf("failed to retrieved issues from JQL: %v", iterErr))
+				return
+			}
+		}()
 
-	if jql == "" {
-		return nil, fmt.Errorf("no JQL query provided")
-	}
+		if jql == "" {
+			iterErr = fmt.Errorf("no JQL query provided")
+			return
+		}
 
-	encodedJQL := url.QueryEscape(jql)
-	path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
+		encodedJQL := url.QueryEscape(jql)
+		path := fmt.Sprintf("/rest/api/2/search?jql=%s", encodedJQL)
 
-	var result struct {
-		Issues []jsonIssue
-	}
-	if err := jiraGet(context.Background(), jc, path, &result); err != nil {
-		return nil, err
-	}
+		var result struct {
+			Issues []jsonIssue
+		}
+		if err := jiraGet(ctx, jc, path, &result); err != nil {
+			iterErr = err
+			return
+		}
 
-	var g errgroup.Group
-	var issueCh = make(chan Issue, len(result.Issues))
-	for _, jIssue := range result.Issues {
-		g.Go(func() error {
-			i, err := newIssueFromJsonIssue(context.Background(), jIssue, jc)
-			if err != nil {
-				return err
+		topIssuesCtx, topIssuesCancel := context.WithCancel(context.Background())
+		defer topIssuesCancel()
+
+		var g errgroup.Group
+		var issueCh = make(chan Issue)
+		for _, jIssue := range result.Issues {
+			g.Go(func() error {
+				// Each top issue is processed independently of others.
+				i, err := newIssueFromJsonIssue(topIssuesCtx, jIssue, jc)
+				if err != nil {
+					return err
+				}
+
+				issueCh <- i
+				return nil
+			})
+		}
+
+		var goroutinesErr error
+		go func() {
+			goroutinesErr = g.Wait()
+			close(issueCh)
+		}()
+
+		// Propagating issues or errors.
+		for {
+			issue, ok := <-issueCh
+
+			// Iterating over all top issues is done
+			if !ok {
+				iterErr = goroutinesErr
+				return
 			}
 
-			issueCh <- i
-			return nil
-		})
+			// Getting one Issue at a time.
+			if more := yield(issue, nil); !more {
+				// Cancel the other goroutines that may still run.
+				topIssuesCancel()
+				return
+			}
+		}
 	}
-
-	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-	close(issueCh)
-
-	issues = make([]Issue, 0, len(result.Issues))
-	for i := range issueCh {
-		issues = append(issues, i)
-	}
-
-	return issues, nil
 }
 
 // GetIssue retrieves a given issue and children subtasks assigned to it.
