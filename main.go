@@ -65,7 +65,7 @@ func main() {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 
-			if vip.Get("jira.username") == nil || vip.Get("jira.api_token") == nil {
+			if vip.Get("jira.username") == "" || vip.Get("jira.api_token") == nil {
 				return fmt.Errorf(`missing configuration. Please set:
   * PULSE_SUMMARIZER_JIRA_USERNAME (your email)")
   * PULSE_SUMMARIZER_IRA_API_TOKEN (API token from your Atlassian account)")
