@@ -59,6 +59,7 @@ func main() {
 		Short:         fmt.Sprintf("%s posts update frequently", name),
 		Long:          "Summarize the high level tickets based on recent activity on its children. If no Jira ticket is provided, all active assigned epics are considered.",
 		SilenceErrors: true,
+		Args:          cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRoot(vip, args)
 		},
